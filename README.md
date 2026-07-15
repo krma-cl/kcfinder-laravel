@@ -46,6 +46,10 @@ The result contains `name`, `path`, `url`, `mime` and `size`. A `FileSelected` e
 
 The adapter does not copy or publish the legacy browser automatically. This keeps Docker and Laravel optional and preserves KCFinder's traditional deployment model. Follow the [core installation guide](https://github.com/krma-cl/kcfinder-Resurrected#installation) for the browser itself.
 
+## Maintenance and community
+
+This official KCFinder integration is maintained by [KRMA](https://krmachile.com) together with its community of users and contributors. KRMA provides development, coordination and infrastructure to support the project's continuity.
+
 ## Development
 
 ```bash
