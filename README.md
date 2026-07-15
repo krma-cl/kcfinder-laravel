@@ -5,7 +5,7 @@ Official Laravel adapter for [`krma-cl/kcfinder`](https://github.com/krma-cl/kcf
 ## Requirements
 
 - PHP 8.2 or newer.
-- Laravel 11, 12 or 13.
+- Laravel 12 or 13.
 - A deployed KCFinder browser from `krma-cl/kcfinder`.
 
 ## Installation
