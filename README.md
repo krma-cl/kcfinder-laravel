@@ -1,6 +1,6 @@
 # KCFinder for Laravel
 
-Official Laravel adapter for [`krma-cl/kcfinder`](https://github.com/krma-cl/kcfinder-Resurrected). It connects the framework filesystem, authorization gate and event dispatcher to KCFinder's framework-independent selector contract.
+Official Laravel adapter for [`krma-cl/kcfinder`](https://github.com/krma-cl/kcfinder-Resurrected). It connects Laravel filesystem, authorization, URL generation and native events to KCFinder while keeping the browser framework-independent.
 
 ## Requirements
 
@@ -11,7 +11,7 @@ Official Laravel adapter for [`krma-cl/kcfinder`](https://github.com/krma-cl/kcf
 ## Installation
 
 ```bash
-composer require krma-cl/kcfinder-laravel
+composer require krma-cl/kcfinder-laravel:^1.1
 php artisan vendor:publish --tag=kcfinder-config
 ```
 
@@ -33,16 +33,183 @@ Gate::define('kcfinder.select', static function ($user, string $operation, strin
 });
 ```
 
-Resolve a selected file as the stable JSON-compatible descriptor:
+Operations include `select`, `preview`, `upload`, `edit`, `move`, `rename`, `delete` and `create_directory`.
+
+## Selecting files
+
+Resolve a selected file as a stable JSON-compatible descriptor:
 
 ```php
-use Krma\KCFinder\Laravel\KCFinderManager;
+use Krma\KCFinder\Laravel\Facades\KCFinder;
 
-$file = app(KCFinderManager::class)->select('/01-actos/DO-20130614.pdf');
+$file = KCFinder::select('/01-actos/DO-20130614.pdf');
+
 return response()->json($file);
 ```
 
-The result contains `name`, `path`, `url`, `mime` and `size`. A `FileSelected` event is dispatched after an authorized selection.
+```json
+{
+  "name": "DO-20130614.pdf",
+  "path": "/01-actos/DO-20130614.pdf",
+  "url": "/storage/01-actos/DO-20130614.pdf",
+  "mime": "application/pdf",
+  "size": 184320
+}
+```
+
+A `FileSelected` event is dispatched after an authorized selection.
+
+## Separate preview and selected URLs
+
+Applications no longer need to expose a storage path directly. Preview and final selected URLs can use different prefixes or temporary signed URLs:
+
+```dotenv
+KCFINDER_SELECTED_URL_PREFIX=/storage/transparencia
+KCFINDER_PREVIEW_URL_PREFIX=/internal/kcfinder/preview
+KCFINDER_PREVIEW_URL_TTL=300
+```
+
+```php
+$previewUrl = KCFinder::previewUrl('/images/photo.jpg');
+$selectedUrl = KCFinder::selectedUrl('/images/photo.jpg');
+```
+
+For S3-compatible disks, setting a TTL makes the adapter request a temporary URL from Laravel's filesystem driver. If an application needs controller routes, authenticated previews or another strategy, bind the contracts in a service provider:
+
+```php
+use Krma\KCFinder\Laravel\Contracts\PreviewUrlResolverInterface;
+use Krma\KCFinder\Laravel\Contracts\SelectedUrlResolverInterface;
+
+$this->app->bind(PreviewUrlResolverInterface::class, AuthenticatedPreviewResolver::class);
+$this->app->bind(SelectedUrlResolverInterface::class, PublicAssetResolver::class);
+```
+
+Both resolvers receive a normalized absolute logical path. Preview resolution is authorized with the `preview` operation before the resolver is called.
+
+## Structured operation responses
+
+Version 1.1 adds a JSON-serializable operation result for upload, edit, move, rename, delete and directory creation. Wire it into the callbacks that already run after a successful KCFinder storage mutation:
+
+```php
+use Krma\KCFinder\Laravel\Facades\KCFinder;
+
+$result = KCFinder::reportUploaded('/images/photo.jpg');
+
+return response()->json($result, $result->httpStatus());
+```
+
+```json
+{
+  "success": true,
+  "operation": "upload",
+  "files": [
+    {
+      "name": "photo.jpg",
+      "path": "/images/photo.jpg",
+      "url": "/storage/images/photo.jpg",
+      "mime": "image/jpeg",
+      "size": 145408
+    }
+  ],
+  "warnings": [],
+  "meta": { "version": 1 }
+}
+```
+
+Failures can retain a stable code, a useful message and their HTTP status:
+
+```php
+use Krma\KCFinder\Laravel\Domain\OperationResult;
+
+$result = OperationResult::failure(
+    'upload',
+    'MIME_NOT_ALLOWED',
+    'The detected file type is not allowed.',
+    415
+);
+```
+
+If the file was saved but a secondary catalog operation failed, return a warning instead of a false upload failure:
+
+```php
+use Krma\KCFinder\Laravel\Domain\OperationWarning;
+
+$result = KCFinder::reportUploaded('/images/photo.jpg', [
+    new OperationWarning(
+        'CATALOG_SYNC_FAILED',
+        'The file was saved, but catalog synchronization must be retried.'
+    ),
+]);
+```
+
+The adapter does not replace the legacy KCFinder JavaScript response automatically. Structured mode is opt-in and can be introduced endpoint by endpoint without breaking existing installations.
+
+## Native Laravel events
+
+The reporter dispatches these events:
+
+| Operation | Event |
+| --- | --- |
+| upload | `FileUploaded` |
+| edit/crop | `FileEdited` |
+| move | `FileMoved` |
+| rename | `FileRenamed` |
+| delete | `FileDeleted` |
+| create directory | `DirectoryCreated` |
+
+File events contain the descriptor, SHA-256 checksum and authenticated user. Move and rename events contain both `previous` and `file` snapshots:
+
+```php
+use Krma\KCFinder\Laravel\Events\FileMoved;
+
+final class SynchronizeCatalog
+{
+    public function handle(FileMoved $event): void
+    {
+        $oldPath = $event->previous->file->path;
+        $newPath = $event->file->path;
+        $checksum = $event->file->checksum;
+        $user = $event->user;
+    }
+}
+```
+
+This allows audit and catalog synchronization without scanning the complete storage tree.
+
+### Correct order for destructive or relocating operations
+
+Take the old snapshot before deleting, moving or renaming, then report only after the storage mutation succeeds:
+
+```php
+$before = KCFinder::snapshot('/images/old-name.jpg', 'rename');
+
+// Perform the authorized rename in the existing KCFinder integration.
+
+$result = KCFinder::reportRenamed($before, '/images/new-name.jpg');
+return response()->json($result, $result->httpStatus());
+```
+
+For deletion:
+
+```php
+$deleted = KCFinder::snapshot('/images/photo.jpg', 'delete');
+
+// Delete the file.
+
+$result = KCFinder::reportDeleted($deleted);
+```
+
+Checksums are streamed instead of loading the whole file into memory. They can be changed or disabled:
+
+```dotenv
+KCFINDER_CHECKSUM_ALGORITHM=sha256
+```
+
+Set an empty value to disable checksums.
+
+## Compatibility
+
+The existing `KCFINDER_URL_PREFIX` and `temporary_url_ttl` configuration remain supported. Existing calls to `select()` and the previous two-argument `KCFinderManager` constructor continue to work.
 
 The adapter does not copy or publish the legacy browser automatically. This keeps Docker and Laravel optional and preserves KCFinder's traditional deployment model. Follow the [core installation guide](https://github.com/krma-cl/kcfinder-Resurrected#installation) for the browser itself.
 

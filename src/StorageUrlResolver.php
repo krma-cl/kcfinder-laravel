@@ -9,10 +9,12 @@ use Illuminate\Filesystem\FilesystemAdapter;
 use InvalidArgumentException;
 use KCFinder\Contract\UrlResolverInterface;
 use KCFinder\Domain\LogicalPath;
+use Krma\KCFinder\Laravel\Contracts\PreviewUrlResolverInterface;
+use Krma\KCFinder\Laravel\Contracts\SelectedUrlResolverInterface;
 use RuntimeException;
 use Throwable;
 
-final class StorageUrlResolver implements UrlResolverInterface
+final class StorageUrlResolver implements UrlResolverInterface, PreviewUrlResolverInterface, SelectedUrlResolverInterface
 {
     public function __construct(
         private readonly FilesystemAdapter $disk,
