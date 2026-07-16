@@ -14,6 +14,11 @@ use Orchestra\Testbench\TestCase;
 
 final class KCFinderServiceProviderTest extends TestCase
 {
+    public function testSelectedResolverContractExtendsTheCoreContract(): void
+    {
+        self::assertTrue(is_subclass_of(SelectedUrlResolverInterface::class, UrlResolverInterface::class));
+    }
+
     /** @return array<int, class-string> */
     protected function getPackageProviders($app): array
     {

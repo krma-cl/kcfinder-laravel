@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Krma\KCFinder\Laravel\Contracts;
 
-interface SelectedUrlResolverInterface
+use KCFinder\Contract\UrlResolverInterface;
+
+interface SelectedUrlResolverInterface extends UrlResolverInterface
 {
-    public function resolve(string $logicalPath): string;
 }

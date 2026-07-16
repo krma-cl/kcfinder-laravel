@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here.
 
+## [1.1.1] - 2026-07-15
+
+### Fixed
+
+- `SelectedUrlResolverInterface` now extends the core `UrlResolverInterface`, so custom selected URL resolvers only need to implement the specialized adapter contract.
+
 ## [1.1.0] - 2026-07-15
 
 ### Added
@@ -18,3 +24,4 @@ All notable changes to this package are documented here.
 - Structured responses are opt-in and do not alter the legacy KCFinder browser protocol.
 
 [1.1.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.1.0
+[1.1.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.1.1
