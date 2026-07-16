@@ -11,7 +11,7 @@ Official Laravel adapter for [`krma-cl/kcfinder`](https://github.com/krma-cl/kcf
 ## Installation
 
 ```bash
-composer require krma-cl/kcfinder-laravel:^1.2
+composer require krma-cl/kcfinder-laravel:^1.2.1
 php artisan vendor:publish --tag=kcfinder-config
 ```
 

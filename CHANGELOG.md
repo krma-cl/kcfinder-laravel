@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here.
 
+## [1.2.1] - 2026-07-15
+
+### Fixed
+
+- Allow all backward-compatible KCFinder 4.x releases from 4.6 onward instead of unnecessarily pinning the bridge to core 4.6.0.
+
 ## [1.2.0] - 2026-07-15
 
 ### Added
@@ -39,3 +45,4 @@ All notable changes to this package are documented here.
 [1.1.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.1.0
 [1.1.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.1.1
 [1.2.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.2.0
+[1.2.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.2.1
