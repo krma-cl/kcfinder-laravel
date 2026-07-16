@@ -13,6 +13,7 @@ use Illuminate\Support\ServiceProvider;
 use KCFinder\Application\FileSelectionService;
 use KCFinder\Contract\AuthorizationInterface;
 use KCFinder\Contract\FileMetadataProviderInterface;
+use KCFinder\Contract\OperationObserverInterface;
 use KCFinder\Contract\UrlResolverInterface;
 use Krma\KCFinder\Laravel\Contracts\ActorResolverInterface;
 use Krma\KCFinder\Laravel\Contracts\ChecksumProviderInterface;
@@ -94,6 +95,11 @@ final class KCFinderServiceProvider extends ServiceProvider
             $app->make(ActorResolverInterface::class),
             $app->make(ChecksumProviderInterface::class)
         ));
+
+        $this->app->singleton(ClassicBrowserBridge::class, fn ($app): ClassicBrowserBridge => new ClassicBrowserBridge(
+            $app->make(KCFinderOperationReporter::class)
+        ));
+        $this->app->alias(ClassicBrowserBridge::class, OperationObserverInterface::class);
 
         $this->app->singleton(KCFinderManager::class, fn ($app): KCFinderManager => new KCFinderManager(
             $app->make(FileSelectionService::class),

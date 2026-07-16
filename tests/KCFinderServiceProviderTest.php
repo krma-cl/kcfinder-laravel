@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Krma\KCFinder\Laravel\Tests;
 
 use KCFinder\Contract\UrlResolverInterface;
+use KCFinder\Contract\OperationObserverInterface;
+use Krma\KCFinder\Laravel\ClassicBrowserBridge;
 use Krma\KCFinder\Laravel\Contracts\PreviewUrlResolverInterface;
 use Krma\KCFinder\Laravel\Contracts\SelectedUrlResolverInterface;
 use Krma\KCFinder\Laravel\KCFinderManager;
@@ -47,5 +49,6 @@ final class KCFinderServiceProviderTest extends TestCase
         self::assertSame('/internal/preview/docs/report.pdf', $preview->resolve('/docs/report.pdf'));
         self::assertInstanceOf(KCFinderOperationReporter::class, $this->app->make(KCFinderOperationReporter::class));
         self::assertInstanceOf(KCFinderManager::class, $this->app->make(KCFinderManager::class));
+        self::assertInstanceOf(ClassicBrowserBridge::class, $this->app->make(OperationObserverInterface::class));
     }
 }

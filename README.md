@@ -11,7 +11,7 @@ Official Laravel adapter for [`krma-cl/kcfinder`](https://github.com/krma-cl/kcf
 ## Installation
 
 ```bash
-composer require krma-cl/kcfinder-laravel:^1.1
+composer require krma-cl/kcfinder-laravel:^1.2
 php artisan vendor:publish --tag=kcfinder-config
 ```
 
@@ -144,6 +144,35 @@ $result = KCFinder::reportUploaded('/images/photo.jpg', [
 
 The adapter does not replace the legacy KCFinder JavaScript response automatically. Structured mode is opt-in and can be introduced endpoint by endpoint without breaking existing installations.
 
+## Automatic classic browser bridge
+
+KCFinder 4.6 exposes a neutral operation observer at the exact success points of the classic browser. Version 1.2 registers `ClassicBrowserBridge` as its Laravel implementation, so integrations no longer need to call every `report*` method manually.
+
+When the classic browser runs inside an already bootstrapped Laravel application, connect the observer in KCFinder's `conf/config.local.php`:
+
+```php
+use KCFinder\Contract\OperationObserverInterface;
+
+$_LOCALS['_operationObserver'] = app(OperationObserverInterface::class);
+```
+
+Do not bootstrap Laravel a second time from `config.local.php`. If `browse.php` is currently a completely independent public script, first expose it through the application's existing authenticated Laravel bootstrap or keep using the explicit `report*` methods until that boundary is available.
+
+The bridge then performs this mapping automatically:
+
+| Classic operation | Laravel event |
+| --- | --- |
+| upload, drag upload | `FileUploaded` |
+| image edit, crop | `FileEdited` |
+| move | `FileMoved` |
+| rename | `FileRenamed` |
+| delete | `FileDeleted` |
+| create directory | `DirectoryCreated` |
+
+Move, rename and delete take their authorized snapshot before the filesystem mutation. Bulk operations emit one event for each file that actually succeeds. A listener exception is logged by the core observer boundary and does not turn an already completed filesystem mutation into a false failure response.
+
+Manual `report*` calls remain available for custom JSON endpoints. Do not use both mechanisms for the same operation, or the application will dispatch duplicate events.
+
 ## Native Laravel events
 
 The reporter dispatches these events:
@@ -209,7 +238,7 @@ Set an empty value to disable checksums.
 
 ## Compatibility
 
-The existing `KCFINDER_URL_PREFIX` and `temporary_url_ttl` configuration remain supported. Existing calls to `select()` and the previous two-argument `KCFinderManager` constructor continue to work.
+The existing `KCFINDER_URL_PREFIX` and `temporary_url_ttl` configuration remain supported. Existing calls to `select()` and the previous two-argument `KCFinderManager` constructor continue to work. The automatic bridge requires KCFinder core 4.6 or newer.
 
 The adapter does not copy or publish the legacy browser automatically. This keeps Docker and Laravel optional and preserves KCFinder's traditional deployment model. Follow the [core installation guide](https://github.com/krma-cl/kcfinder-Resurrected#installation) for the browser itself.
 

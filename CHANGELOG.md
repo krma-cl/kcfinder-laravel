@@ -2,6 +2,19 @@
 
 All notable changes to this package are documented here.
 
+## [1.2.0] - 2026-07-15
+
+### Added
+
+- Official classic browser bridge for the neutral operation observer introduced by KCFinder 4.6.
+- Automatic snapshots and Laravel events for classic uploads, edits, moves, renames, deletes and directory creation.
+- One event per successfully mutated file in bulk operations, without rescanning storage.
+
+### Changed
+
+- The minimum supported KCFinder core version is now 4.6.
+- Listener failures are isolated by the core bridge boundary, preserving successful classic browser mutations and logging the secondary failure.
+
 ## [1.1.1] - 2026-07-15
 
 ### Fixed
@@ -25,3 +38,4 @@ All notable changes to this package are documented here.
 
 [1.1.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.1.0
 [1.1.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.1.1
+[1.2.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.2.0
