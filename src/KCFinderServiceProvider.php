@@ -25,6 +25,7 @@ use Krma\KCFinder\Laravel\Contracts\SelectedUrlResolverInterface;
 use Krma\KCFinder\Laravel\Console\ClearCacheCommand;
 use Krma\KCFinder\Laravel\Console\InstallAssetsCommand;
 use Krma\KCFinder\Laravel\Http\ClassicBrowserEntrypoint;
+use Krma\KCFinder\Laravel\Http\ClassicBrowserBundles;
 use Krma\KCFinder\Laravel\Http\ClassicBrowserRuntime;
 use Krma\KCFinder\Laravel\Http\Controllers\ClassicBrowserController;
 use Krma\KCFinder\Laravel\Http\NativeSessionInitializer;
@@ -122,6 +123,17 @@ final class KCFinderServiceProvider extends ServiceProvider
         $coreRoot = $this->coreRoot();
         $this->app->singleton(ThemePackageLocator::class);
         $themeRoots = $this->app->make(ThemePackageLocator::class)->roots();
+        $config = $this->app->make(ConfigRepository::class);
+        $publishedAssetsRoot = $config->get('kcfinder.http.assets_path');
+        if (!is_string($publishedAssetsRoot) || $publishedAssetsRoot === '') {
+            $publishedAssetsRoot = public_path(
+                trim((string) $config->get('kcfinder.http.prefix', 'kcfinder'), '/')
+            );
+        }
+        $this->app->singleton(ClassicBrowserBundles::class, fn (): ClassicBrowserBundles => new ClassicBrowserBundles(
+            $coreRoot,
+            $themeRoots
+        ));
         $this->app->singleton(NativeSessionInitializer::class);
         $this->app->singleton(ClassicBrowserRuntime::class, fn ($app): ClassicBrowserRuntime => new ClassicBrowserRuntime(
             $app->make(ConfigRepository::class),
@@ -133,11 +145,13 @@ final class KCFinderServiceProvider extends ServiceProvider
         ));
         $this->app->singleton(ClassicBrowserEntrypoint::class, fn (): ClassicBrowserEntrypoint => new ClassicBrowserEntrypoint(
             $coreRoot,
-            $themeRoots
+            $themeRoots,
+            $publishedAssetsRoot
         ));
         $this->app->singleton(InstallAssetsCommand::class, fn ($app): InstallAssetsCommand => new InstallAssetsCommand(
             $app->make(Filesystem::class),
-            $coreRoot
+            $coreRoot,
+            $app->make(ClassicBrowserBundles::class)
         ));
         $this->app->singleton(ClearCacheCommand::class, fn ($app): ClearCacheCommand => new ClearCacheCommand(
             $app->make(Filesystem::class),

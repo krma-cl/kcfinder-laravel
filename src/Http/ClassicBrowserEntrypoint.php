@@ -4,23 +4,45 @@ declare(strict_types=1);
 
 namespace Krma\KCFinder\Laravel\Http;
 
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use RuntimeException;
 
 final class ClassicBrowserEntrypoint
 {
+    private readonly ClassicBrowserBundles $bundles;
+
     /** @param array<string, string> $themeRoots */
     public function __construct(
         private readonly string $root,
-        private readonly array $themeRoots = array()
+        private readonly array $themeRoots = array(),
+        private readonly ?string $publishedAssetsRoot = null
     ) {
+        $this->bundles = new ClassicBrowserBundles($root, $themeRoots);
     }
 
-    public function run(string $path): Response
+    public function run(string $path, ?Request $request = null): Response
     {
         $path = str_replace('\\', '/', ltrim($path, '/'));
         if (!$this->allowed($path)) {
             abort(404);
+        }
+
+        $bundle = $this->bundles->render($path, $this->publishedAssetsRoot);
+        if ($bundle !== null) {
+            $response = new Response(
+                $bundle['content'],
+                200,
+                array(
+                    'Content-Type' => $bundle['contentType'],
+                    'Cache-Control' => 'private, max-age=0, must-revalidate',
+                    'X-Content-Type-Options' => 'nosniff',
+                )
+            );
+            if ($bundle['modified'] > 0) {
+                $response->setLastModified(new \DateTimeImmutable('@' . $bundle['modified']));
+            }
+            return $response;
         }
 
         [$file, $allowedRoot] = $this->fileAndRoot($path);
@@ -43,7 +65,10 @@ final class ClassicBrowserEntrypoint
         }
 
         $cwd = getcwd();
+        $server = $this->serverEnvironment($realFile, $request);
+        $previousStatus = http_response_code();
         $status = 200;
+        $bufferLevel = ob_get_level();
         ob_start();
         try {
             chdir(dirname($realFile));
@@ -54,11 +79,15 @@ final class ClassicBrowserEntrypoint
                 ? $reportedStatus
                 : 200;
         } finally {
-            if (ob_get_level() > 0) {
+            while (ob_get_level() > $bufferLevel) {
                 ob_end_clean();
             }
             if ($cwd !== false) {
                 chdir($cwd);
+            }
+            $this->restoreServerEnvironment($server);
+            if (is_int($previousStatus) && $previousStatus >= 100 && $previousStatus <= 599) {
+                http_response_code($previousStatus);
             }
         }
 
@@ -113,5 +142,41 @@ final class ClassicBrowserEntrypoint
             'ttf' => 'font/ttf',
             default => throw new RuntimeException('Unsupported KCFinder asset type.'),
         };
+    }
+
+    /**
+     * @return array<string, array{exists: bool, value: mixed}>
+     */
+    private function serverEnvironment(string $realFile, ?Request $request): array
+    {
+        $values = array(
+            'SCRIPT_FILENAME' => $realFile,
+            'HTTP_HOST' => $request?->getHttpHost()
+                ?? (is_string($_SERVER['HTTP_HOST'] ?? null) ? $_SERVER['HTTP_HOST'] : 'localhost'),
+            'HTTPS' => $request !== null
+                ? ($request->isSecure() ? 'on' : 'off')
+                : (is_string($_SERVER['HTTPS'] ?? null) ? $_SERVER['HTTPS'] : 'off'),
+        );
+        $previous = array();
+        foreach ($values as $key => $value) {
+            $previous[$key] = array(
+                'exists' => array_key_exists($key, $_SERVER),
+                'value' => $_SERVER[$key] ?? null,
+            );
+            $_SERVER[$key] = $value;
+        }
+        return $previous;
+    }
+
+    /** @param array<string, array{exists: bool, value: mixed}> $previous */
+    private function restoreServerEnvironment(array $previous): void
+    {
+        foreach ($previous as $key => $state) {
+            if ($state['exists']) {
+                $_SERVER[$key] = $state['value'];
+            } else {
+                unset($_SERVER[$key]);
+            }
+        }
     }
 }

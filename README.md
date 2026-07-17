@@ -38,7 +38,7 @@ Operations include `browse`, `select`, `preview`, `upload`, `edit`, `copy`,
 
 ## Optional authenticated classic browser
 
-Version 1.3 can route the classic browser through Laravel instead of exposing a
+Version 1.4.1 can route the classic browser through Laravel instead of exposing a
 PHP entrypoint inside `vendor`. It is disabled by default. Enable it only behind
 your application's authenticated middleware:
 
@@ -67,6 +67,10 @@ The browser is then available at `/kcfinder/browse.php`. The bridge:
 - injects the official operation observer without editing `vendor`;
 - applies `nosniff`, a same-origin referrer policy and a configurable CSP;
 - serves only the known browser entrypoints and safe static asset types.
+- serves the legacy JavaScript and CSS bundle URLs without executing their
+  minifier PHP wrappers inside the Laravel process;
+- provides and restores the server variables required by functional PHP
+  entrypoints.
 
 The classic browser currently requires a local Laravel filesystem disk because
 its image editor and legacy file operations use physical paths. S3 and other
@@ -76,7 +80,7 @@ this optional HTTP browser bridge.
 Publish static assets without copying executable PHP files:
 
 ```bash
-composer require krma-cl/kcfinder-bootstrap5-theme:^0.3
+composer require krma-cl/kcfinder-bootstrap5-theme:^0.3.1
 php artisan kcfinder:install-assets
 php artisan kcfinder:install-assets --force
 php artisan kcfinder:clear-cache
@@ -88,6 +92,11 @@ different trusted origin.
 When the Bootstrap 5 theme package is installed, `kcfinder:install-assets`
 detects it and publishes `dist/bootstrap5` automatically. The generated
 application manifest records both installed package versions.
+The command also creates static base and theme bundles under `bundles/`.
+Requests for the historical `js/index.php`, `css/index.php` and theme bundle
+URLs are resolved to those files by the authenticated bridge. If assets have
+not been published yet, the bridge concatenates the trusted package sources
+directly without executing the legacy minifiers.
 The authenticated route also mounts the package as a trusted external theme
 root, so KCFinder can load its icons and dynamic bundles without copying it
 inside `vendor/krma-cl/kcfinder/themes`.
