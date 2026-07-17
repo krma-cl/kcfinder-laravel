@@ -120,10 +120,20 @@ final class KCFinderServiceProvider extends ServiceProvider
         ));
 
         $coreRoot = $this->coreRoot();
+        $this->app->singleton(ThemePackageLocator::class);
+        $themeRoots = $this->app->make(ThemePackageLocator::class)->roots();
         $this->app->singleton(NativeSessionInitializer::class);
-        $this->app->singleton(ClassicBrowserRuntime::class);
+        $this->app->singleton(ClassicBrowserRuntime::class, fn ($app): ClassicBrowserRuntime => new ClassicBrowserRuntime(
+            $app->make(ConfigRepository::class),
+            $app->make(FilesystemFactory::class),
+            $app->make(OperationObserverInterface::class),
+            $app->make(NativeSessionInitializer::class),
+            $coreRoot,
+            $themeRoots
+        ));
         $this->app->singleton(ClassicBrowserEntrypoint::class, fn (): ClassicBrowserEntrypoint => new ClassicBrowserEntrypoint(
-            $coreRoot
+            $coreRoot,
+            $themeRoots
         ));
         $this->app->singleton(InstallAssetsCommand::class, fn ($app): InstallAssetsCommand => new InstallAssetsCommand(
             $app->make(Filesystem::class),

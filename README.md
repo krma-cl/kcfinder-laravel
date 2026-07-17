@@ -11,7 +11,7 @@ Official Laravel adapter for [`krma-cl/kcfinder`](https://github.com/krma-cl/kcf
 ## Installation
 
 ```bash
-composer require krma-cl/kcfinder-laravel:^1.3
+composer require krma-cl/kcfinder-laravel:^1.4
 php artisan vendor:publish --tag=kcfinder-config
 ```
 
@@ -88,6 +88,9 @@ different trusted origin.
 When the Bootstrap 5 theme package is installed, `kcfinder:install-assets`
 detects it and publishes `dist/bootstrap5` automatically. The generated
 application manifest records both installed package versions.
+The authenticated route also mounts the package as a trusted external theme
+root, so KCFinder can load its icons and dynamic bundles without copying it
+inside `vendor/krma-cl/kcfinder/themes`.
 
 ## Selecting files
 

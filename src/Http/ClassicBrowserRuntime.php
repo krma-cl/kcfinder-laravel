@@ -16,7 +16,10 @@ final class ClassicBrowserRuntime
         private readonly Repository $config,
         private readonly FilesystemFactory $filesystems,
         private readonly OperationObserverInterface $observer,
-        private readonly NativeSessionInitializer $sessions
+        private readonly NativeSessionInitializer $sessions,
+        private readonly string $coreRoot,
+        /** @var array<string, string> */
+        private readonly array $themeRoots = array()
     ) {
     }
 
@@ -48,6 +51,10 @@ final class ClassicBrowserRuntime
         $runtime['uploadURL'] = (string) ($runtime['uploadURL'] ?? $this->config->get('kcfinder.url_prefix', '/storage'));
         $runtime['_operationObserver'] = $this->observer;
         $runtime['_sessionCsrf'] = true;
+        $runtime['_themeRoots'] = array_replace(
+            (array) ($runtime['_themeRoots'] ?? array()),
+            $this->themeRoots
+        );
 
         $_SESSION['KCFINDER'] = array_replace(
             is_array($_SESSION['KCFINDER'] ?? null) ? $_SESSION['KCFINDER'] : array(),
@@ -58,6 +65,7 @@ final class ClassicBrowserRuntime
             )
         );
         $GLOBALS['KCFINDER_RUNTIME_CONFIG'] = $runtime;
+        $GLOBALS['KCFINDER_CORE_ROOT'] = $this->coreRoot;
 
         return $runtime;
     }

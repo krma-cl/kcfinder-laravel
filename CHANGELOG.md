@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.0] - 2026-07-17
+
+- Discover the optional Bootstrap 5 Composer package as an external KCFinder
+  theme root.
+- Serve mounted theme assets and dynamic CSS/JavaScript entrypoints through the
+  authenticated browser route.
+- Keep the core and theme packages immutable inside `vendor`.
+- Require KCFinder 4.9 external theme root support.
+
 ## [1.3.1] - 2026-07-17
 
 - Let `kcfinder:install-assets` detect and publish the optional Composer
@@ -63,3 +72,4 @@ All notable changes to this package are documented here.
 [1.2.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.2.1
 [1.3.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.3.0
 [1.3.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.3.1
+[1.4.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.4.0
