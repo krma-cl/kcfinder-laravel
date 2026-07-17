@@ -8,7 +8,10 @@ use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use KCFinder\Application\FileSelectionService;
 use KCFinder\Contract\AuthorizationInterface;
@@ -19,6 +22,13 @@ use Krma\KCFinder\Laravel\Contracts\ActorResolverInterface;
 use Krma\KCFinder\Laravel\Contracts\ChecksumProviderInterface;
 use Krma\KCFinder\Laravel\Contracts\PreviewUrlResolverInterface;
 use Krma\KCFinder\Laravel\Contracts\SelectedUrlResolverInterface;
+use Krma\KCFinder\Laravel\Console\ClearCacheCommand;
+use Krma\KCFinder\Laravel\Console\InstallAssetsCommand;
+use Krma\KCFinder\Laravel\Http\ClassicBrowserEntrypoint;
+use Krma\KCFinder\Laravel\Http\ClassicBrowserRuntime;
+use Krma\KCFinder\Laravel\Http\Controllers\ClassicBrowserController;
+use Krma\KCFinder\Laravel\Http\NativeSessionInitializer;
+use ReflectionClass;
 use RuntimeException;
 
 final class KCFinderServiceProvider extends ServiceProvider
@@ -108,6 +118,22 @@ final class KCFinderServiceProvider extends ServiceProvider
             $app->make(AuthorizationInterface::class),
             $app->make(PreviewUrlResolverInterface::class)
         ));
+
+        $coreRoot = $this->coreRoot();
+        $this->app->singleton(NativeSessionInitializer::class);
+        $this->app->singleton(ClassicBrowserRuntime::class);
+        $this->app->singleton(ClassicBrowserEntrypoint::class, fn (): ClassicBrowserEntrypoint => new ClassicBrowserEntrypoint(
+            $coreRoot
+        ));
+        $this->app->singleton(InstallAssetsCommand::class, fn ($app): InstallAssetsCommand => new InstallAssetsCommand(
+            $app->make(Filesystem::class),
+            $coreRoot
+        ));
+        $this->app->singleton(ClearCacheCommand::class, fn ($app): ClearCacheCommand => new ClearCacheCommand(
+            $app->make(Filesystem::class),
+            $app->make(FilesystemFactory::class),
+            $coreRoot
+        ));
     }
 
     public function boot(): void
@@ -115,6 +141,23 @@ final class KCFinderServiceProvider extends ServiceProvider
         $this->publishes(array(
             __DIR__ . '/../config/kcfinder.php' => config_path('kcfinder.php'),
         ), 'kcfinder-config');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands(array(InstallAssetsCommand::class, ClearCacheCommand::class));
+        }
+
+        $config = $this->app->make(ConfigRepository::class);
+        if ((bool) $config->get('kcfinder.http.enabled', false)) {
+            $prefix = trim((string) $config->get('kcfinder.http.prefix', 'kcfinder'), '/');
+            $middleware = (array) $config->get('kcfinder.http.middleware', array('web', 'auth'));
+            Route::middleware($middleware)
+                ->prefix($prefix)
+                ->group(static function (): void {
+                    Route::match(array('GET', 'POST'), '/{path?}', ClassicBrowserController::class)
+                        ->where('path', '.*')
+                        ->name('kcfinder.browser');
+                });
+        }
     }
 
     private function disk(mixed $app): FilesystemAdapter
@@ -125,5 +168,14 @@ final class KCFinderServiceProvider extends ServiceProvider
             throw new RuntimeException('The configured KCFinder disk must use Laravel FilesystemAdapter.');
         }
         return $disk;
+    }
+
+    private function coreRoot(): string
+    {
+        $file = (new ReflectionClass(\KCFinder\Domain\OperationContext::class))->getFileName();
+        if (!is_string($file)) {
+            throw new RuntimeException('Unable to locate the installed KCFinder core package.');
+        }
+        return dirname($file, 3);
     }
 }

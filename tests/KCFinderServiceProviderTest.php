@@ -36,6 +36,8 @@ final class KCFinderServiceProviderTest extends TestCase
         $app['config']->set('kcfinder.disk', 'kcfinder-test');
         $app['config']->set('kcfinder.urls.selected.prefix', '/storage');
         $app['config']->set('kcfinder.urls.preview.prefix', '/internal/preview');
+        $app['config']->set('kcfinder.http.enabled', true);
+        $app['config']->set('kcfinder.http.middleware', array());
     }
 
     public function testItRegistersSeparateUrlResolversAndOperationServices(): void
@@ -50,5 +52,6 @@ final class KCFinderServiceProviderTest extends TestCase
         self::assertInstanceOf(KCFinderOperationReporter::class, $this->app->make(KCFinderOperationReporter::class));
         self::assertInstanceOf(KCFinderManager::class, $this->app->make(KCFinderManager::class));
         self::assertInstanceOf(ClassicBrowserBridge::class, $this->app->make(OperationObserverInterface::class));
+        self::assertNotNull($this->app['router']->getRoutes()->getByName('kcfinder.browser'));
     }
 }

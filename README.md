@@ -11,7 +11,7 @@ Official Laravel adapter for [`krma-cl/kcfinder`](https://github.com/krma-cl/kcf
 ## Installation
 
 ```bash
-composer require krma-cl/kcfinder-laravel:^1.2.1
+composer require krma-cl/kcfinder-laravel:^1.3
 php artisan vendor:publish --tag=kcfinder-config
 ```
 
@@ -20,7 +20,7 @@ Configure the disk and browser URL in `.env`:
 ```dotenv
 KCFINDER_DISK=public
 KCFINDER_URL_PREFIX=/storage
-KCFINDER_BROWSER_URL=/vendor/kcfinder/browse.php
+KCFINDER_BROWSER_URL=/kcfinder/browse.php
 ```
 
 Define the authorization rule. The callback receives the operation and logical path:
@@ -33,7 +33,57 @@ Gate::define('kcfinder.select', static function ($user, string $operation, strin
 });
 ```
 
-Operations include `select`, `preview`, `upload`, `edit`, `move`, `rename`, `delete` and `create_directory`.
+Operations include `browse`, `select`, `preview`, `upload`, `edit`, `copy`,
+`move`, `rename`, `delete` and `create_directory`.
+
+## Optional authenticated classic browser
+
+Version 1.3 can route the classic browser through Laravel instead of exposing a
+PHP entrypoint inside `vendor`. It is disabled by default. Enable it only behind
+your application's authenticated middleware:
+
+```dotenv
+KCFINDER_HTTP_ENABLED=true
+KCFINDER_HTTP_PREFIX=kcfinder
+KCFINDER_SESSION_PATH=/absolute/writable/path/kcfinder-sessions
+KCFINDER_UPLOAD_URL=/storage
+```
+
+```php
+// config/kcfinder.php
+'http' => [
+    'enabled' => true,
+    'prefix' => 'kcfinder',
+    'middleware' => ['web', 'auth', 'can:manage-files'],
+    // ...
+],
+```
+
+The browser is then available at `/kcfinder/browse.php`. The bridge:
+
+- authorizes the request through the configured Gate;
+- starts an isolated native session in a configurable writable directory;
+- makes the CSRF token available on the very first request;
+- injects the official operation observer without editing `vendor`;
+- applies `nosniff`, a same-origin referrer policy and a configurable CSP;
+- serves only the known browser entrypoints and safe static asset types.
+
+The classic browser currently requires a local Laravel filesystem disk because
+its image editor and legacy file operations use physical paths. S3 and other
+remote disks remain supported for descriptors and URL resolvers, but not for
+this optional HTTP browser bridge.
+
+Publish static assets without copying executable PHP files:
+
+```bash
+php artisan kcfinder:install-assets
+php artisan kcfinder:install-assets --force
+php artisan kcfinder:clear-cache
+```
+
+`kcfinder:clear-cache` removes generated bundles and the `.thumbs` tree. Adjust
+the CSP and middleware in configuration when the browser must be embedded in a
+different trusted origin.
 
 ## Selecting files
 
@@ -146,7 +196,10 @@ The adapter does not replace the legacy KCFinder JavaScript response automatical
 
 ## Automatic classic browser bridge
 
-KCFinder 4.6 exposes a neutral operation observer at the exact success points of the classic browser. Version 1.2 registers `ClassicBrowserBridge` as its Laravel implementation, so integrations no longer need to call every `report*` method manually.
+KCFinder 4.8.1 exposes a neutral operation observer at the exact success points
+of the classic browser. The adapter registers `ClassicBrowserBridge` as its
+Laravel implementation, so integrations no longer need to call every `report*`
+method manually.
 
 When the classic browser runs inside an already bootstrapped Laravel application, connect the observer in KCFinder's `conf/config.local.php`:
 
@@ -165,9 +218,12 @@ The bridge then performs this mapping automatically:
 | upload, drag upload | `FileUploaded` |
 | image edit, crop | `FileEdited` |
 | move | `FileMoved` |
+| copy | `FileCopied` |
 | rename | `FileRenamed` |
 | delete | `FileDeleted` |
 | create directory | `DirectoryCreated` |
+| rename directory | `DirectoryRenamed` |
+| delete directory | `DirectoryDeleted` |
 
 Move, rename and delete take their authorized snapshot before the filesystem mutation. Bulk operations emit one event for each file that actually succeeds. A listener exception is logged by the core observer boundary and does not turn an already completed filesystem mutation into a false failure response.
 
@@ -182,9 +238,12 @@ The reporter dispatches these events:
 | upload | `FileUploaded` |
 | edit/crop | `FileEdited` |
 | move | `FileMoved` |
+| copy | `FileCopied` |
 | rename | `FileRenamed` |
 | delete | `FileDeleted` |
 | create directory | `DirectoryCreated` |
+| rename directory | `DirectoryRenamed` |
+| delete directory | `DirectoryDeleted` |
 
 File events contain the descriptor, SHA-256 checksum and authenticated user. Move and rename events contain both `previous` and `file` snapshots:
 
@@ -240,7 +299,8 @@ Set an empty value to disable checksums.
 
 The existing `KCFINDER_URL_PREFIX` and `temporary_url_ttl` configuration remain supported. Existing calls to `select()` and the previous two-argument `KCFinderManager` constructor continue to work. The automatic bridge requires KCFinder core 4.6 or newer.
 
-The adapter does not copy or publish the legacy browser automatically. This keeps Docker and Laravel optional and preserves KCFinder's traditional deployment model. Follow the [core installation guide](https://github.com/krma-cl/kcfinder-Resurrected#installation) for the browser itself.
+The adapter keeps the HTTP bridge opt-in and never copies executable PHP files
+from `vendor`. Traditional standalone KCFinder installations remain supported.
 
 ## Maintenance and community
 

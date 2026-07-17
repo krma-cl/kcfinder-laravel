@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.0] - 2026-07-17
+
+- Add the optional authenticated Laravel HTTP bridge for the classic browser.
+- Initialize an isolated native session and synchronize CSRF on the first request.
+- Add safe static asset publication and cache clearing Artisan commands.
+- Emit `FileCopied`, `DirectoryRenamed` and `DirectoryDeleted`.
+- Require KCFinder core 4.8.1 for trusted runtime observer injection.
+- Document the local-disk boundary and configurable security headers.
+
 All notable changes to this package are documented here.
 
 ## [1.2.1] - 2026-07-15
@@ -46,3 +55,4 @@ All notable changes to this package are documented here.
 [1.1.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.1.1
 [1.2.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.2.0
 [1.2.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.2.1
+[1.3.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.3.0
