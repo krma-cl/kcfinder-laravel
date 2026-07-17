@@ -76,6 +76,7 @@ this optional HTTP browser bridge.
 Publish static assets without copying executable PHP files:
 
 ```bash
+composer require krma-cl/kcfinder-bootstrap5-theme:^0.3
 php artisan kcfinder:install-assets
 php artisan kcfinder:install-assets --force
 php artisan kcfinder:clear-cache
@@ -84,6 +85,9 @@ php artisan kcfinder:clear-cache
 `kcfinder:clear-cache` removes generated bundles and the `.thumbs` tree. Adjust
 the CSP and middleware in configuration when the browser must be embedded in a
 different trusted origin.
+When the Bootstrap 5 theme package is installed, `kcfinder:install-assets`
+detects it and publishes `dist/bootstrap5` automatically. The generated
+application manifest records both installed package versions.
 
 ## Selecting files
 

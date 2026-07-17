@@ -49,10 +49,27 @@ final class InstallAssetsCommand extends Command
             }
         }
 
+        $themeVersion = null;
+        if (InstalledVersions::isInstalled('krma-cl/kcfinder-bootstrap5-theme')) {
+            $themeRoot = InstalledVersions::getInstallPath('krma-cl/kcfinder-bootstrap5-theme');
+            $themeSource = is_string($themeRoot)
+                ? $themeRoot . DIRECTORY_SEPARATOR . 'dist' . DIRECTORY_SEPARATOR . 'bootstrap5'
+                : null;
+            if (is_string($themeSource) && $this->files->isDirectory($themeSource)) {
+                $themeTarget = $target . DIRECTORY_SEPARATOR . 'themes' . DIRECTORY_SEPARATOR . 'bootstrap5';
+                $this->files->deleteDirectory($themeTarget);
+                $this->files->copyDirectory($themeSource, $themeTarget);
+                $themeVersion = InstalledVersions::getPrettyVersion('krma-cl/kcfinder-bootstrap5-theme');
+            }
+        }
+
         $version = InstalledVersions::getPrettyVersion('krma-cl/kcfinder') ?? 'unknown';
         $this->files->put(
             $target . DIRECTORY_SEPARATOR . 'manifest.json',
-            json_encode(array('core' => $version), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL
+            json_encode(
+                array('core' => $version, 'bootstrap5Theme' => $themeVersion),
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+            ) . PHP_EOL
         );
         $this->components->info(sprintf('KCFinder assets %s published to %s.', $version, $target));
         return self::SUCCESS;
