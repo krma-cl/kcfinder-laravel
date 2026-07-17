@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.1] - 2026-07-17
+
+- Let `kcfinder:install-assets` detect and publish the optional Composer
+  Bootstrap 5 theme package.
+- Record core and theme versions in the published asset manifest.
+
 ## [1.3.0] - 2026-07-17
 
 - Add the optional authenticated Laravel HTTP bridge for the classic browser.
@@ -56,3 +62,4 @@ All notable changes to this package are documented here.
 [1.2.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.2.0
 [1.2.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.2.1
 [1.3.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.3.0
+[1.3.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.3.1
