@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.1] - 2026-07-17
+
+- Serve the legacy base and theme CSS/JavaScript bundle URLs without executing
+  minifier PHP wrappers that can terminate the Laravel process.
+- Publish versioned static bundles with `kcfinder:install-assets` and fall back
+  to safe source concatenation when they are not present.
+- Temporarily provide `SCRIPT_FILENAME`, `HTTP_HOST` and `HTTPS` to functional
+  PHP entrypoints and restore their previous values after execution.
+- Allow a direct authenticated first visit without requiring an HTTP Referer;
+  Laravel middleware and the configured Gate remain the authorization boundary.
+- Add HTTP integration coverage for first-session browsing, all bundle routes,
+  security headers and global restoration.
+
 ## [1.4.0] - 2026-07-17
 
 - Discover the optional Bootstrap 5 Composer package as an external KCFinder
@@ -73,3 +86,4 @@ All notable changes to this package are documented here.
 [1.3.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.3.0
 [1.3.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.3.1
 [1.4.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.4.0
+[1.4.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.4.1

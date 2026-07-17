@@ -51,6 +51,9 @@ final class ClassicBrowserRuntime
         $runtime['uploadURL'] = (string) ($runtime['uploadURL'] ?? $this->config->get('kcfinder.url_prefix', '/storage'));
         $runtime['_operationObserver'] = $this->observer;
         $runtime['_sessionCsrf'] = true;
+        // The authenticated Laravel route is the trust boundary. A Referer
+        // header is optional and must not make a direct first visit terminate.
+        $runtime['_denyExtDomains'] = (bool) ($runtime['_denyExtDomains'] ?? false);
         $runtime['_themeRoots'] = array_replace(
             (array) ($runtime['_themeRoots'] ?? array()),
             $this->themeRoots

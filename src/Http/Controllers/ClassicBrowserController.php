@@ -24,7 +24,7 @@ final class ClassicBrowserController
         $this->gate->authorize($ability, array('browse', '/'));
         $this->runtime->prepare();
 
-        $response = $this->entrypoint->run($path);
+        $response = $this->entrypoint->run($path, request());
         foreach ((array) config('kcfinder.http.headers', array()) as $name => $value) {
             if (is_string($name) && is_string($value)) {
                 $response->headers->set($name, $value);
