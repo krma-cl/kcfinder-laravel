@@ -9,8 +9,11 @@ use RuntimeException;
 
 final class ClassicBrowserEntrypoint
 {
-    public function __construct(private readonly string $root)
-    {
+    /** @param array<string, string> $themeRoots */
+    public function __construct(
+        private readonly string $root,
+        private readonly array $themeRoots = array()
+    ) {
     }
 
     public function run(string $path): Response
@@ -20,8 +23,8 @@ final class ClassicBrowserEntrypoint
             abort(404);
         }
 
-        $file = $this->root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
-        $realRoot = realpath($this->root);
+        [$file, $allowedRoot] = $this->fileAndRoot($path);
+        $realRoot = realpath($allowedRoot);
         $realFile = realpath($file);
         if ($realRoot === false || $realFile === false || !str_starts_with($realFile, $realRoot . DIRECTORY_SEPARATOR)) {
             abort(404);
@@ -43,7 +46,7 @@ final class ClassicBrowserEntrypoint
         $status = 200;
         ob_start();
         try {
-            chdir($this->root);
+            chdir(dirname($realFile));
             require $realFile;
             $body = (string) ob_get_clean();
             $reportedStatus = http_response_code();
@@ -60,6 +63,24 @@ final class ClassicBrowserEntrypoint
         }
 
         return new Response($body, $status, array('X-Content-Type-Options' => 'nosniff'));
+    }
+
+    /** @return array{0: string, 1: string} */
+    private function fileAndRoot(string $path): array
+    {
+        if (preg_match('#^themes/([A-Za-z0-9_-]+)/(.+)$#', $path, $matches) === 1) {
+            $themeRoot = $this->themeRoots[$matches[1]] ?? null;
+            if (is_string($themeRoot)) {
+                return array(
+                    $themeRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $matches[2]),
+                    $themeRoot,
+                );
+            }
+        }
+        return array(
+            $this->root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path),
+            $this->root,
+        );
     }
 
     private function allowed(string $path): bool
