@@ -76,6 +76,12 @@ final class KCFinderManager
     }
 
     /** @param array<int, OperationWarning> $warnings */
+    public function reportCopied(FileSnapshot $previous, string $newLogicalPath, array $warnings = array()): OperationResult
+    {
+        return $this->operationReporter()->copied($previous, $newLogicalPath, $warnings);
+    }
+
+    /** @param array<int, OperationWarning> $warnings */
     public function reportRenamed(FileSnapshot $previous, string $newLogicalPath, array $warnings = array()): OperationResult
     {
         return $this->operationReporter()->renamed($previous, $newLogicalPath, $warnings);
@@ -91,6 +97,21 @@ final class KCFinderManager
     public function reportDirectoryCreated(string $logicalPath, array $warnings = array()): OperationResult
     {
         return $this->operationReporter()->directoryCreated($logicalPath, $warnings);
+    }
+
+    /** @param array<int, OperationWarning> $warnings */
+    public function reportDirectoryRenamed(
+        string $previousLogicalPath,
+        string $newLogicalPath,
+        array $warnings = array()
+    ): OperationResult {
+        return $this->operationReporter()->directoryRenamed($previousLogicalPath, $newLogicalPath, $warnings);
+    }
+
+    /** @param array<int, OperationWarning> $warnings */
+    public function reportDirectoryDeleted(string $logicalPath, array $warnings = array()): OperationResult
+    {
+        return $this->operationReporter()->directoryDeleted($logicalPath, $warnings);
     }
 
     private function operationReporter(): KCFinderOperationReporter

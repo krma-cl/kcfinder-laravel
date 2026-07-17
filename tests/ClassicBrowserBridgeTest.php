@@ -13,6 +13,9 @@ use Krma\KCFinder\Laravel\ClassicBrowserBridge;
 use Krma\KCFinder\Laravel\Contracts\ActorResolverInterface;
 use Krma\KCFinder\Laravel\Contracts\ChecksumProviderInterface;
 use Krma\KCFinder\Laravel\Events\DirectoryCreated;
+use Krma\KCFinder\Laravel\Events\DirectoryDeleted;
+use Krma\KCFinder\Laravel\Events\DirectoryRenamed;
+use Krma\KCFinder\Laravel\Events\FileCopied;
 use Krma\KCFinder\Laravel\Events\FileRenamed;
 use Krma\KCFinder\Laravel\Events\FileUploaded;
 use Krma\KCFinder\Laravel\KCFinderOperationReporter;
@@ -87,6 +90,67 @@ final class ClassicBrowserBridgeTest extends TestCase
         );
 
         $bridge->succeeded($operation);
+    }
+
+    public function testItTranslatesFileCopyWithBothSnapshots(): void
+    {
+        $old = $this->file('/images/original.jpg');
+        $new = $this->file('/archive/original.jpg');
+        $metadata = $this->createMock(FileMetadataProviderInterface::class);
+        $metadata->expects(self::exactly(2))->method('metadata')->willReturnMap(array(
+            array('/images/original.jpg', $old),
+            array('/archive/original.jpg', $new),
+        ));
+        $authorization = $this->allowing(array(
+            array('copy', '/images/original.jpg', true),
+            array('copy', '/images/original.jpg', true),
+            array('copy', '/archive/original.jpg', true),
+        ));
+        $events = $this->createMock(Dispatcher::class);
+        $events->expects(self::once())->method('dispatch')->with(self::callback(
+            static fn (mixed $event): bool => $event instanceof FileCopied
+                && $event->previous->file === $old
+                && $event->file->file === $new
+        ));
+        $bridge = new ClassicBrowserBridge($this->reporter($metadata, $authorization, $events));
+        $operation = new OperationContext('copy', '/images/original.jpg', '/archive/original.jpg');
+
+        $bridge->succeeded($operation, $bridge->before($operation));
+    }
+
+    public function testItTranslatesDirectoryRenameAndDelete(): void
+    {
+        $metadata = $this->createMock(FileMetadataProviderInterface::class);
+        $authorization = $this->allowing(array(
+            array('rename', '/old', true),
+            array('rename', '/new', true),
+            array('delete', '/new', true),
+        ));
+        $events = $this->createMock(Dispatcher::class);
+        $events->expects(self::exactly(2))->method('dispatch')->with(self::callback(
+            static fn (mixed $event): bool => (
+                $event instanceof DirectoryRenamed
+                && $event->previousPath === '/old'
+                && $event->path === '/new'
+            ) || (
+                $event instanceof DirectoryDeleted
+                && $event->path === '/new'
+            )
+        ));
+        $bridge = new ClassicBrowserBridge($this->reporter($metadata, $authorization, $events));
+
+        $bridge->succeeded(new OperationContext(
+            'rename',
+            '/old',
+            '/new',
+            OperationContext::RESOURCE_DIRECTORY
+        ));
+        $bridge->succeeded(new OperationContext(
+            'delete',
+            '/new',
+            null,
+            OperationContext::RESOURCE_DIRECTORY
+        ));
     }
 
     /** @param array<int, array{0: string, 1: string, 2: bool}> $calls */

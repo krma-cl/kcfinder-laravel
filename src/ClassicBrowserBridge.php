@@ -19,7 +19,7 @@ final class ClassicBrowserBridge implements OperationObserverInterface
     {
         if (
             $operation->resource === OperationContext::RESOURCE_FILE
-            && in_array($operation->operation, array('move', 'rename', 'delete'), true)
+            && in_array($operation->operation, array('copy', 'move', 'rename', 'delete'), true)
         ) {
             return $this->operations->snapshot($operation->path, $operation->operation);
         }
@@ -39,10 +39,21 @@ final class ClassicBrowserBridge implements OperationObserverInterface
             case 'move':
                 $this->operations->moved($this->previousSnapshot($operation, $previousState), $operation->resultingPath());
                 return;
+            case 'copy':
+                $this->operations->copied($this->previousSnapshot($operation, $previousState), $operation->resultingPath());
+                return;
             case 'rename':
+                if ($operation->resource === OperationContext::RESOURCE_DIRECTORY) {
+                    $this->operations->directoryRenamed($operation->path, $operation->resultingPath());
+                    return;
+                }
                 $this->operations->renamed($this->previousSnapshot($operation, $previousState), $operation->resultingPath());
                 return;
             case 'delete':
+                if ($operation->resource === OperationContext::RESOURCE_DIRECTORY) {
+                    $this->operations->directoryDeleted($operation->path);
+                    return;
+                }
                 $this->operations->deleted($this->previousSnapshot($operation, $previousState));
                 return;
             case 'create_directory':
