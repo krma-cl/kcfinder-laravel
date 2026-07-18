@@ -34,6 +34,7 @@ final class ClassicBrowserBundles
             if (!is_string($content)) {
                 throw new RuntimeException('Unable to read the published KCFinder bundle.');
             }
+            $content = $this->prepareContent($content, $definition);
 
             return array(
                 'content' => $content,
@@ -64,6 +65,7 @@ final class ClassicBrowserBundles
             if (!is_string($source)) {
                 throw new RuntimeException('Unable to read a KCFinder bundle source.');
             }
+            $source = $this->prepareContent($source, $definition);
             $content .= $source;
             $modified = max($modified, (int) filemtime($realFile));
         }
@@ -121,7 +123,13 @@ final class ClassicBrowserBundles
     }
 
     /**
-     * @return array{directory: string, extension: string, contentType: string, output: string}|null
+     * @return array{
+     *     directory: string,
+     *     extension: string,
+     *     contentType: string,
+     *     output: string,
+     *     assetPrefix: string
+     * }|null
      */
     private function definition(string $path): ?array
     {
@@ -136,6 +144,7 @@ final class ClassicBrowserBundles
                 'extension' => $extension,
                 'contentType' => $this->contentType($extension),
                 'output' => 'bundles' . DIRECTORY_SEPARATOR . "base.{$extension}",
+                'assetPrefix' => '../css/',
             );
         }
 
@@ -156,7 +165,73 @@ final class ClassicBrowserBundles
             'extension' => $extension,
             'contentType' => $this->contentType($extension),
             'output' => 'bundles' . DIRECTORY_SEPARATOR . 'themes' . DIRECTORY_SEPARATOR . "{$theme}.{$extension}",
+            'assetPrefix' => "../../themes/{$theme}/",
         );
+    }
+
+    /**
+     * @param array{
+     *     directory: string,
+     *     extension: string,
+     *     contentType: string,
+     *     output: string,
+     *     assetPrefix: string
+     * } $definition
+     */
+    private function prepareContent(string $content, array $definition): string
+    {
+        if ($definition['extension'] !== 'css') {
+            return $content;
+        }
+
+        $rebased = preg_replace_callback(
+            '#/\*.*?\*/(*SKIP)(*F)|url\(\s*(?:(["\'])(.*?)\1|([^)]*?))\s*\)#is',
+            function (array $matches) use ($definition): string {
+                $quoted = isset($matches[1]) && $matches[1] !== '';
+                $value = trim((string) ($quoted ? ($matches[2] ?? '') : ($matches[3] ?? '')));
+                if (
+                    !$this->isRelativeCssUrl($value)
+                    || str_starts_with($value, $definition['assetPrefix'])
+                ) {
+                    return $matches[0];
+                }
+
+                $open = strpos($matches[0], '(');
+                $position = $open === false
+                    ? false
+                    : strpos($matches[0], $value, $open + 1);
+                if ($position === false) {
+                    return $matches[0];
+                }
+
+                return substr_replace(
+                    $matches[0],
+                    $definition['assetPrefix'] . $value,
+                    $position,
+                    strlen($value)
+                );
+            },
+            $content
+        );
+        if (!is_string($rebased)) {
+            throw new RuntimeException('Unable to rewrite KCFinder CSS asset URLs.');
+        }
+        return $rebased;
+    }
+
+    private function isRelativeCssUrl(string $url): bool
+    {
+        if (
+            $url === ''
+            || str_starts_with($url, '/')
+            || str_starts_with($url, '#')
+            || str_starts_with($url, '?')
+            || str_starts_with(strtolower($url), 'var(')
+        ) {
+            return false;
+        }
+
+        return preg_match('/^[a-z][a-z0-9+.-]*:/i', $url) !== 1;
     }
 
     private function legacyPath(string $path): string

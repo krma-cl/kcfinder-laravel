@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.3] - 2026-07-17
+
+- Rebase relative CSS `url(...)` references from virtual base and theme bundle
+  endpoints to their published static asset directories.
+- Preserve embedded data, absolute, external, `blob:` and fragment URLs.
+- Cover Bootstrap 5 SVG icons, the base `Jcrop.gif` resource, previously
+  published bundles and installation output.
+
 ## [1.4.2] - 2026-07-17
 
 - Rewrite authenticated browser HTML to virtual, versioned
