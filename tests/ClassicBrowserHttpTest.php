@@ -30,6 +30,7 @@ final class ClassicBrowserHttpTest extends TestCase
         ));
         $app['config']->set('kcfinder.disk', 'kcfinder-http');
         $app['config']->set('kcfinder.http.enabled', true);
+        $app['config']->set('kcfinder.http.prefix', 'dashboard/kcfinder');
         $app['config']->set('kcfinder.http.middleware', array());
         $app['config']->set(
             'kcfinder.http.assets_path',
@@ -50,13 +51,14 @@ final class ClassicBrowserHttpTest extends TestCase
         );
     }
 
-    public function testAuthenticatedRouteServesAllFourLegacyBundleUrlsSafely(): void
+    public function testNestedAuthenticatedRouteServesBundlesAndLocalizationSafely(): void
     {
         $expectations = array(
-            '/kcfinder/js/index.php' => 'text/javascript',
-            '/kcfinder/css/index.php' => 'text/css',
-            '/kcfinder/themes/default/js.php' => 'text/javascript',
-            '/kcfinder/themes/default/css.php' => 'text/css',
+            '/dashboard/kcfinder/browser-assets/base.js' => 'text/javascript',
+            '/dashboard/kcfinder/browser-assets/base.css' => 'text/css',
+            '/dashboard/kcfinder/browser-assets/themes/default.js' => 'text/javascript',
+            '/dashboard/kcfinder/browser-assets/themes/default.css' => 'text/css',
+            '/dashboard/kcfinder/js_localize.php?lng=es' => 'text/javascript',
         );
 
         foreach ($expectations as $url => $contentType) {
@@ -97,11 +99,27 @@ final class ClassicBrowserHttpTest extends TestCase
         $_COOKIE = array();
         unset($_SERVER['HTTP_HOST'], $_SERVER['HTTPS']);
 
-        $response = $this->get('/kcfinder/browse.php');
+        $response = $this->get('/dashboard/kcfinder/browse.php');
 
         $response->assertOk();
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
         $response->assertHeader('Content-Security-Policy');
-        self::assertStringContainsString('<!DOCTYPE html>', (string) $response->getContent());
+        $body = (string) $response->getContent();
+        self::assertStringContainsString('<!DOCTYPE html>', $body);
+        self::assertStringContainsString('src="browser-assets/base.js?v=', $body);
+        self::assertStringContainsString('href="browser-assets/base.css?v=', $body);
+        self::assertStringContainsString('src="browser-assets/themes/default.js?v=', $body);
+        self::assertStringContainsString('href="browser-assets/themes/default.css?v=', $body);
+        self::assertStringNotContainsString('src="js/index.php"', $body);
+        self::assertStringNotContainsString('href="css/index.php"', $body);
+
+        $base = strpos($body, 'src="browser-assets/base.js');
+        $localization = strpos($body, 'src="js_localize.php');
+        $theme = strpos($body, 'src="browser-assets/themes/default.js');
+        self::assertIsInt($base);
+        self::assertIsInt($localization);
+        self::assertIsInt($theme);
+        self::assertLessThan($localization, $base);
+        self::assertLessThan($theme, $localization);
     }
 }
