@@ -58,6 +58,7 @@ final class ClassicBrowserHttpTest extends TestCase
             '/dashboard/kcfinder/browser-assets/base.css' => 'text/css',
             '/dashboard/kcfinder/browser-assets/themes/default.js' => 'text/javascript',
             '/dashboard/kcfinder/browser-assets/themes/default.css' => 'text/css',
+            '/dashboard/kcfinder/browser-assets/themes/bootstrap5.css' => 'text/css',
             '/dashboard/kcfinder/js_localize.php?lng=es' => 'text/javascript',
         );
 
@@ -88,8 +89,33 @@ final class ClassicBrowserHttpTest extends TestCase
         self::assertFileExists($target . '/bundles/base.css');
         self::assertFileExists($target . '/bundles/themes/default.js');
         self::assertFileExists($target . '/bundles/themes/default.css');
+        self::assertFileExists($target . '/bundles/themes/bootstrap5.css');
+        self::assertFileExists($target . '/css/Jcrop.gif');
+        self::assertFileExists($target . '/themes/bootstrap5/img/bi/clipboard-plus.svg');
         self::assertFileDoesNotExist($target . '/js/index.php');
         self::assertFileDoesNotExist($target . '/css/index.php');
+
+        $baseCss = file_get_contents($target . '/bundles/base.css');
+        $bootstrapCss = file_get_contents($target . '/bundles/themes/bootstrap5.css');
+        self::assertIsString($baseCss);
+        self::assertIsString($bootstrapCss);
+        self::assertStringContainsString('url(../css/Jcrop.gif)', $baseCss);
+        self::assertStringContainsString(
+            'url(../../themes/bootstrap5/img/bi/clipboard-plus.svg)',
+            $bootstrapCss
+        );
+
+        $bundleFiles = array(
+            $target . '/bundles/base.css',
+            $target . '/bundles/themes/bootstrap5.css',
+        );
+        foreach ($bundleFiles as $bundleFile) {
+            $content = file_get_contents($bundleFile);
+            self::assertIsString($content);
+            $relative = str_replace('\\', '/', substr($bundleFile, strlen($target) + 1));
+            $bundleUrl = '/' . preg_replace('#^bundles/#', 'browser-assets/', $relative);
+            $this->assertCssAssetsResolve($content, $bundleUrl, $target);
+        }
     }
 
     #[RunInSeparateProcess]
@@ -121,5 +147,57 @@ final class ClassicBrowserHttpTest extends TestCase
         self::assertIsInt($theme);
         self::assertLessThan($localization, $base);
         self::assertLessThan($theme, $localization);
+    }
+
+    private function assertCssAssetsResolve(string $css, string $bundleUrl, string $target): void
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $css) ?? $css;
+        preg_match_all(
+            '#url\(\s*(?:(["\'])(.*?)\1|([^)]*?))\s*\)#is',
+            $css,
+            $matches,
+            PREG_SET_ORDER
+        );
+
+        foreach ($matches as $match) {
+            $quoted = isset($match[1]) && $match[1] !== '';
+            $url = trim((string) ($quoted ? ($match[2] ?? '') : ($match[3] ?? '')));
+            if (
+                $url === ''
+                || str_starts_with($url, '/')
+                || str_starts_with($url, '#')
+                || str_starts_with($url, '?')
+                || str_starts_with(strtolower($url), 'var(')
+                || preg_match('/^[a-z][a-z0-9+.-]*:/i', $url) === 1
+            ) {
+                continue;
+            }
+
+            $path = preg_replace('/[?#].*$/', '', $url) ?? $url;
+            $slash = strrpos($bundleUrl, '/');
+            $directory = $slash === false ? '/' : substr($bundleUrl, 0, $slash + 1);
+            $resolved = $this->normalizeUrlPath($directory . $path);
+
+            self::assertFileExists(
+                $target . str_replace('/', DIRECTORY_SEPARATOR, $resolved),
+                sprintf('CSS asset %s referenced by %s must be published.', $url, $bundleUrl)
+            );
+        }
+    }
+
+    private function normalizeUrlPath(string $path): string
+    {
+        $segments = array();
+        foreach (explode('/', str_replace('\\', '/', $path)) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+            if ($segment === '..') {
+                array_pop($segments);
+                continue;
+            }
+            $segments[] = $segment;
+        }
+        return '/' . implode('/', $segments);
     }
 }

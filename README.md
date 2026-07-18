@@ -38,7 +38,7 @@ Operations include `browse`, `select`, `preview`, `upload`, `edit`, `copy`,
 
 ## Optional authenticated classic browser
 
-Version 1.4.2 can route the classic browser through Laravel instead of exposing a
+Version 1.4.3 can route the classic browser through Laravel instead of exposing a
 PHP entrypoint inside `vendor`. It is disabled by default. Enable it only behind
 your application's authenticated middleware:
 
@@ -100,6 +100,10 @@ with the configured security headers. If assets have not been published yet,
 the bridge concatenates the trusted package sources directly without executing
 the legacy minifiers. `js_localize.php` is also rendered safely by the bridge
 and cannot terminate the Laravel process through its historical `die`.
+CSS bundles rebase relative `url(...)` references to the published `css/` or
+`themes/<theme>/` directories. Embedded data, absolute and external URLs,
+`blob:` values and fragments remain unchanged, so theme icons and Jcrop
+resources resolve correctly from the virtual bundle endpoints.
 The authenticated route also mounts the package as a trusted external theme
 root, so KCFinder can load its icons and dynamic bundles without copying it
 inside `vendor/krma-cl/kcfinder/themes`.
