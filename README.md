@@ -38,7 +38,7 @@ Operations include `browse`, `select`, `preview`, `upload`, `edit`, `copy`,
 
 ## Optional authenticated classic browser
 
-Version 1.4.1 can route the classic browser through Laravel instead of exposing a
+Version 1.4.2 can route the classic browser through Laravel instead of exposing a
 PHP entrypoint inside `vendor`. It is disabled by default. Enable it only behind
 your application's authenticated middleware:
 
@@ -93,10 +93,13 @@ When the Bootstrap 5 theme package is installed, `kcfinder:install-assets`
 detects it and publishes `dist/bootstrap5` automatically. The generated
 application manifest records both installed package versions.
 The command also creates static base and theme bundles under `bundles/`.
-Requests for the historical `js/index.php`, `css/index.php` and theme bundle
-URLs are resolved to those files by the authenticated bridge. If assets have
-not been published yet, the bridge concatenates the trusted package sources
-directly without executing the legacy minifiers.
+The authenticated HTML uses virtual, content-versioned URLs under
+`browser-assets/`, avoiding collisions with physical `js/` and `css/`
+directories on Apache. Those requests are resolved to the published bundles
+with the configured security headers. If assets have not been published yet,
+the bridge concatenates the trusted package sources directly without executing
+the legacy minifiers. `js_localize.php` is also rendered safely by the bridge
+and cannot terminate the Laravel process through its historical `die`.
 The authenticated route also mounts the package as a trusted external theme
 root, so KCFinder can load its icons and dynamic bundles without copying it
 inside `vendor/krma-cl/kcfinder/themes`.

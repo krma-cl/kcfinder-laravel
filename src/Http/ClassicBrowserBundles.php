@@ -20,6 +20,7 @@ final class ClassicBrowserBundles
      */
     public function render(string $path, ?string $publishedRoot = null): ?array
     {
+        $path = $this->legacyPath($path);
         $definition = $this->definition($path);
         if ($definition === null) {
             return null;
@@ -73,6 +74,20 @@ final class ClassicBrowserBundles
             'output' => $definition['output'],
             'modified' => $modified,
         );
+    }
+
+    public function browserUrl(string $legacyPath, ?string $publishedRoot = null): ?string
+    {
+        $bundle = $this->render($legacyPath, $publishedRoot);
+        if ($bundle === null) {
+            return null;
+        }
+        $relative = str_replace(DIRECTORY_SEPARATOR, '/', $bundle['output']);
+        $relative = preg_replace('#^bundles/#', 'browser-assets/', $relative);
+        if (!is_string($relative)) {
+            return null;
+        }
+        return $relative . '?v=' . substr(hash('sha256', $bundle['content']), 0, 12);
     }
 
     /** @return array<string, string> output path => content */
@@ -142,6 +157,19 @@ final class ClassicBrowserBundles
             'contentType' => $this->contentType($extension),
             'output' => 'bundles' . DIRECTORY_SEPARATOR . 'themes' . DIRECTORY_SEPARATOR . "{$theme}.{$extension}",
         );
+    }
+
+    private function legacyPath(string $path): string
+    {
+        return match ($path) {
+            'browser-assets/base.js' => 'js/index.php',
+            'browser-assets/base.css' => 'css/index.php',
+            default => preg_replace_callback(
+                '#^browser-assets/themes/([A-Za-z0-9_-]+)\.(js|css)$#',
+                static fn (array $matches): string => "themes/{$matches[1]}/{$matches[2]}.php",
+                $path
+            ) ?? $path,
+        };
     }
 
     private function publishedFile(string $root, string $relative): ?string

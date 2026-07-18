@@ -100,4 +100,21 @@ final class ClassicBrowserEntrypointTest extends TestCase
 
         self::assertSame('window.published = true;', $response->getContent());
     }
+
+    public function testItServesLocalizationWithoutExecutingTheLegacyDieWrapper(): void
+    {
+        $root = sys_get_temp_dir() . '/kcfinder-localization-' . bin2hex(random_bytes(4));
+        mkdir($root . '/lang', 0777, true);
+        file_put_contents(
+            $root . '/lang/es.php',
+            '<?php $lang = array("_lang" => "Spanish", "Upload" => "Cargar");'
+        );
+        file_put_contents($root . '/js_localize.php', '<?php die("must not run");');
+        $request = Request::create('/js_localize.php?lng=es');
+
+        $response = (new ClassicBrowserEntrypoint($root))->run('js_localize.php', $request);
+
+        self::assertSame('text/javascript; charset=UTF-8', $response->headers->get('Content-Type'));
+        self::assertSame('_.labels={"Upload":"Cargar"};', $response->getContent());
+    }
 }

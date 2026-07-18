@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.2] - 2026-07-17
+
+- Rewrite authenticated browser HTML to virtual, versioned
+  `browser-assets/*` URLs so Apache cannot treat missing `js/index.php` and
+  `css/index.php` files inside published directories as 404 responses.
+- Preserve the required base, localization and theme script order.
+- Render `js_localize.php` safely without executing its historical `die`.
+- Add nested-prefix HTTP coverage for bundle content, JavaScript/CSS MIME
+  types, CSP, `nosniff`, first-session browsing and generated script order.
+
 ## [1.4.1] - 2026-07-17
 
 - Serve the legacy base and theme CSS/JavaScript bundle URLs without executing
@@ -87,3 +97,4 @@ All notable changes to this package are documented here.
 [1.3.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.3.1
 [1.4.0]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.4.0
 [1.4.1]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.4.1
+[1.4.2]: https://github.com/krma-cl/kcfinder-laravel/releases/tag/v1.4.2

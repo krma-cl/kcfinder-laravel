@@ -11,6 +11,7 @@ use RuntimeException;
 final class ClassicBrowserEntrypoint
 {
     private readonly ClassicBrowserBundles $bundles;
+    private readonly ClassicBrowserLocalization $localization;
 
     /** @param array<string, string> $themeRoots */
     public function __construct(
@@ -19,6 +20,7 @@ final class ClassicBrowserEntrypoint
         private readonly ?string $publishedAssetsRoot = null
     ) {
         $this->bundles = new ClassicBrowserBundles($root, $themeRoots);
+        $this->localization = new ClassicBrowserLocalization($root);
     }
 
     public function run(string $path, ?Request $request = null): Response
@@ -43,6 +45,10 @@ final class ClassicBrowserEntrypoint
                 $response->setLastModified(new \DateTimeImmutable('@' . $bundle['modified']));
             }
             return $response;
+        }
+        if ($path === 'js_localize.php') {
+            $language = $request?->query('lng') ?? ($_GET['lng'] ?? null);
+            return $this->localization->response(is_string($language) ? $language : null);
         }
 
         [$file, $allowedRoot] = $this->fileAndRoot($path);
@@ -78,6 +84,9 @@ final class ClassicBrowserEntrypoint
             $status = is_int($reportedStatus) && $reportedStatus >= 100 && $reportedStatus <= 599
                 ? $reportedStatus
                 : 200;
+            if ($path === 'browse.php') {
+                $body = $this->rewriteBundleUrls($body);
+            }
         } finally {
             while (ob_get_level() > $bufferLevel) {
                 ob_end_clean();
@@ -118,6 +127,14 @@ final class ClassicBrowserEntrypoint
             return true;
         }
         if (preg_match('#^themes/[A-Za-z0-9_-]+/(?:css|js)\.php$#', $path) === 1) {
+            return true;
+        }
+        if (
+            preg_match(
+                '#^browser-assets/(?:base\.(?:css|js)|themes/[A-Za-z0-9_-]+\.(?:css|js))$#',
+                $path
+            ) === 1
+        ) {
             return true;
         }
         return preg_match(
@@ -178,5 +195,31 @@ final class ClassicBrowserEntrypoint
                 unset($_SERVER[$key]);
             }
         }
+    }
+
+    private function rewriteBundleUrls(string $body): string
+    {
+        $baseJavascript = $this->bundles->browserUrl('js/index.php', $this->publishedAssetsRoot);
+        $baseStylesheet = $this->bundles->browserUrl('css/index.php', $this->publishedAssetsRoot);
+        if ($baseJavascript !== null) {
+            $body = str_replace('src="js/index.php"', 'src="' . $baseJavascript . '"', $body);
+        }
+        if ($baseStylesheet !== null) {
+            $body = str_replace('href="css/index.php"', 'href="' . $baseStylesheet . '"', $body);
+        }
+
+        $body = preg_replace_callback(
+            '#(src|href)="themes/([A-Za-z0-9_-]+)/(js|css)\.php"#',
+            function (array $matches): string {
+                $url = $this->bundles->browserUrl(
+                    "themes/{$matches[2]}/{$matches[3]}.php",
+                    $this->publishedAssetsRoot
+                );
+                return $url === null ? $matches[0] : "{$matches[1]}=\"{$url}\"";
+            },
+            $body
+        ) ?? $body;
+
+        return $body;
     }
 }
